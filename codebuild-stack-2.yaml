@@ -1,38 +1,18 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: 2010-09-09
 
 ## =================== DESCRIPTION =================== ##
 Description: >-
   AWS CloudFormation sample template
-  - Create a new CodeBuild project that gets the source code from GitHub and drops the build artifacts into S3 bucket that hosts the static website
-  - Create a new role for CodeBuild
+  - Create a new S3 bucket and it's policy, configure it to host a static website  
 
 ## =================== PARAMETERS =================== ##
 Parameters:
-  paramPersonalGitHubAccessToken:
-    Type: String
-    MinLength: 10
-    ConstraintDescription: Personal GitHub access token is missing
-    Description: Provide your personal GitHub access token for CodeBuild to access your GitHub repo 
-  paramCodeBuildProjectName:
-    Description: Specify CodeBuild project name
-    Type: String
-    MinLength: 10
-    MaxLength: 255
-    AllowedPattern: ^[a-zA-Z][-a-zA-Z0-9]*$
-    ConstraintDescription: Should contain uppercase, lowercase letters and digits from 0 to 9 only
-    Default: westworld-codebuild-for-website-hosting
-  paramGitHubLink:
-    Type: String
-    Description: Provide your GitHub link with source code for static website
-    Default: https://github.com/Tiamatt/StaticWebsiteHostingToS3.git
-  paramBuildSpecRelativePathInGitHub:
-    Description: Provide a relative path for BuildSpec yaml file in source code for static website 
-    Type: String
-    Default:  frontend/app-for-aws/buildspec.yml
   paramStaticWebsiteHostingBucketName:
-    Description: Specify an existing S3 bucket that hosts static website
+    Description: Specify a unique name for S3 bucket that will host static website
     Type: String
     Default: westworld-website-hosting-bucket
+    AllowedPattern: "(?!(^xn--|.+-s3alias$))^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$"  # includes using S3 Transfer Acceleration
+    ConstraintDescription: Bucket names must be between 3 (min) and 63 (max) characters long, can consist only of lowercase letters, numbers, dots, and hyphens, must begin and end with a letter or number, etc. 
   paramUniqueTagName:
     Description: Specify a unique name for tag
     Type: String
@@ -42,99 +22,52 @@ Parameters:
 
 ## =================== RESOURCES =================== ##
 Resources:
-  # Create a new role for CodeBuild
-  myCodeBuildProjectRole:
-    Type: AWS::IAM::Role
+  # Create a new S3 bucket and configure it to host a static website   
+  myStaticWebsiteHostingBucket:
+    Type: 'AWS::S3::Bucket'
+    DeletionPolicy: Delete #allow CloudFormation delete the bucket when stack is deleted
     Properties:
-      RoleName: !Sub role-for-${paramCodeBuildProjectName}
-      Path: /
-      AssumeRolePolicyDocument:
+      BucketName: !Ref paramStaticWebsiteHostingBucketName
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
+      VersioningConfiguration:
+        Status: Enabled
+      # AccessControl: PublicRead # throws an error: Bucket cannot have public ACLs set with BlockPublicAccess enabled
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: ObjectWriter
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+      Tags:
+        - Key: mastering-cloudformation
+          Value:  !Ref paramUniqueTagName
+
+  # Create a policy for myStaticWebsiteHostingBucket to give a public access to website
+  myStaticWebsiteHostingBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref myStaticWebsiteHostingBucket
+      PolicyDocument:
         Version: 2012-10-17
         Statement:
-          - Action:
-              - 'sts:AssumeRole'
+          - Sid: PublicReadForGetBucketObjects
             Effect: Allow
-            Principal:
-              Service:
-                - codebuild.amazonaws.com
-      Policies:
-        - PolicyName: !Sub policy-for-${paramCodeBuildProjectName}
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              # statement to create and stream CloudWatch
-              - Action:
-                  - logs:CreateLogGroup
-                  - logs:CreateLogStream
-                  - logs:PutLogEvents
-                Effect: Allow
-                Resource:
-                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${paramCodeBuildProjectName}-CloudWatchLogs
-                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${paramCodeBuildProjectName}-CloudWatchLogs:*
-              # statement to access S3 bucket that hosts static website (CodeBuild will save Artofacts there)
-              - Action:
-                  - s3:PutObject
-                  - s3:GetObject
-                  - s3:GetObjectVersion
-                  - s3:GetBucketAcl
-                  - s3:GetBucketLocation
-                Effect: Allow
-                Resource:
-                  - !Sub arn:aws:s3:::${paramStaticWebsiteHostingBucketName}
-                  - !Sub arn:aws:s3:::${paramStaticWebsiteHostingBucketName}/*
-      Tags:
-        - Key: mastering-cloudformation
-          Value:  !Ref paramUniqueTagName
-  # Allow CodeBuild to connect to target Github repo (where static website locates) using Github Personal Access Token 
-  myCodeBuildSourceCredential:
-    Type: AWS::CodeBuild::SourceCredential
-    Properties:
-      AuthType: PERSONAL_ACCESS_TOKEN
-      ServerType: GITHUB
-      Token: !Ref paramPersonalGitHubAccessToken
-
-  # Create a new CodeBuild project that gets the source code from GitHub and drops the build artifacts into S3 bucket
-  myCodeBuildProject:
-    Type: AWS::CodeBuild::Project
-    Properties:
-      Name: !Ref paramCodeBuildProjectName
-      Description: CodeBuild project for automatically build of static website hosted on s3
-      Source:
-        Type: GITHUB
-        Location: !Ref paramGitHubLink
-        GitCloneDepth: 1
-        BuildSpec: !Ref paramBuildSpecRelativePathInGitHub
-        Auth:
-          Resource: !Ref myCodeBuildSourceCredential
-          Type: OAUTH
-      Triggers:
-        Webhook: true
-        FilterGroups:
-          - - Type: EVENT
-              Pattern: PUSH
-            - Type: HEAD_REF
-              Pattern: ^refs/heads/main # for feature branches use: ^refs/heads/feature/.* 
-      Environment: # use Ubuntu standard v7
-        Type: LINUX_CONTAINER
-        ComputeType: BUILD_GENERAL1_SMALL
-        Image: aws/codebuild/standard:7.0
-      ServiceRole: !Ref myCodeBuildProjectRole # !Sub 'arn:aws:iam::${AWS::AccountId}:role/${myCodeBuildRole}'
-      TimeoutInMinutes: 5
-      Artifacts: # drop the build artifacts of S3 bucket that hosts static website
-        Type: S3
-        Name: '/' # store the artifact in the root of the output bucket
-        Location: !Sub arn:aws:s3:::${paramStaticWebsiteHostingBucketName}
-        EncryptionDisabled: True #disable the encryption of artifacts in a build to see html pages
-      LogsConfig:
-        CloudWatchLogs:
-          Status: ENABLED
-          GroupName: !Sub ${paramCodeBuildProjectName}-cloud-watch-logs
-      Tags:
-        - Key: mastering-cloudformation
-          Value:  !Ref paramUniqueTagName
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Join 
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref myStaticWebsiteHostingBucket
+                - /*
 
 ## =================== OUTPUT =================== ##
 Outputs:
-  outputCodeBuildProject:
-    Description: CodeBuild project name
-    Value: !Ref myCodeBuildProject
+  outputWebsiteURL:
+    Value: !GetAtt 
+      - myStaticWebsiteHostingBucket
+      - WebsiteURL
+    Description: Static website URL
