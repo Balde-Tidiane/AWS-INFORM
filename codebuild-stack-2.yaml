@@ -27,7 +27,7 @@ Resources:
     Type: 'AWS::S3::Bucket'
     DeletionPolicy: Delete #allow CloudFormation delete the bucket when stack is deleted
     Properties:
-      BucketName: !Ref paramStaticWebsiteHostingBucketName
+      BucketName: !Ref paramStattricWebsiteHostingBucketName
       WebsiteConfiguration:
         IndexDocument: index.html
         ErrorDocument: error.html
