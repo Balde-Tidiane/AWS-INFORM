@@ -1,40 +1,47 @@
+# Definition der Ressourcen für die S3-Bucket-Erstellung
 Resources:
   myStaticWebsiteHostingBucket:
-    Type: "AWS::S3::Bucket"
+    Type: 'AWS::S3::Bucket'   # S3-Bucket-Typ
     Properties:
-      BucketName: trg-bucket-tb
+      BucketName: your-bucket-name   # Name des S3-Buckets, bitte ersetzen Sie "your-bucket-name" durch einen gewünschten Namen
       WebsiteConfiguration:
-        IndexDocument: index.html
-        ErrorDocument: error.html
+        IndexDocument: index.html   # Standardindexdokument für die statische Website
+        ErrorDocument: error.html   # Fehlerdokument für die Website
+
+      # Ownership Controls sind definiert
       OwnershipControls:
         Rules:
-          - ObjectOwnership: ObjectWriter
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: false
-        BlockPublicPolicy: false
-        IgnorePublicAcls: false
-        RestrictPublicBuckets: false
+          - ObjectOwnership: ObjectWriter   # Regel für Ownership, in diesem Fall "ObjectWriter"
 
+      # Einstellungen für den öffentlichen Zugriff auf den Bucket
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false   # Blockieren von öffentlichen ACLs (Access Control Lists)
+        BlockPublicPolicy: false   # Blockieren von öffentlichen Richtlinien
+        IgnorePublicAcls: false   # Ignorieren von öffentlichen ACLs
+        RestrictPublicBuckets: false   # Beschränken öffentlicher Buckets
+
+  # Definition einer Bucket-Richtlinie (Policy) für öffentlichen Lesezugriff
   myStaticWebsiteHostingBucketPolicy:
-    Type: "AWS::S3::BucketPolicy"
+    Type: 'AWS::S3::BucketPolicy'
     Properties:
-      Bucket: !Ref myStaticWebsiteHostingBucket
+      Bucket: !Ref myStaticWebsiteHostingBucket   # Bezieht sich auf den zuvor erstellten S3-Bucket
       PolicyDocument:
         Version: 2012-10-17
         Statement:
-          - Sid: PublicReadForGetBucketObjects
-            Effect: Allow
-            Principal: "*"
-            Action: "s3:GetObject"
-            Resource: !Join
-              - ""
-              - - "arn:aws:s3:::"
+          - Sid: PublicReadForGetBucketObjects   # Eine eindeutige Kennung für die Richtlinienanweisung
+            Effect: Allow   # Erlauben
+            Principal: '*'   # Jeder (alle Benutzer)
+            Action: 's3:GetObject'   # Berechtigung zum Abrufen von Objekten
+            Resource: !Join 
+              - ''
+              - - 'arn:aws:s3:::'
                 - !Ref myStaticWebsiteHostingBucket
-                - "/*"
+                - '/*'   # Ressource: Alle Objekte im Bucket
 
+# Definition einer Output-Variablen für die URL der statischen Website
 Outputs:
   outputWebsiteURL:
-    Value: !GetAtt
+    Value: !GetAtt 
       - myStaticWebsiteHostingBucket
-      - WebsiteURL
-    Description: Static website URL
+      - WebsiteURL   # Gibt die URL der statischen Website zurück
+    Description: Static website URL   # Beschreibung der Output-Variable
