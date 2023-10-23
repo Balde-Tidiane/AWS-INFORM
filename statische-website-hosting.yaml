@@ -18,7 +18,7 @@ Resources:
         BlockPublicAcls: false   # Blockieren von öffentlichen ACLs (Access Control Lists)
         BlockPublicPolicy: false   # Blockieren von öffentlichen Richtlinien
         IgnorePublicAcls: false   # Ignorieren von öffentlichen ACLs
-        RestrictPublicBuckets: false   # Beschränken öffentlicher Buckets
+        RestrictPublicBuckets: false   # Beschränken öffentlicher Buckets 
 
   # Definition einer Bucket-Richtlinie (Policy) für öffentlichen Lesezugriff
   myStaticWebsiteHostingBucketPolicy:
