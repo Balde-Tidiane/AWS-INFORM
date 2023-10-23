@@ -3,7 +3,7 @@ Resources:
   myStaticWebsiteHostingBucket:
     Type: 'AWS::S3::Bucket'   # S3-Bucket-Typ
     Properties:
-      BucketName: trg-bucket-tb  # Name des S3-Buckets, bitte ersetzen Sie "your-bucket-name" durch einen gewünschten Namen
+      BucketName: trg-bucket-tb  # Name des S3-Buckets
       WebsiteConfiguration:
         IndexDocument: index.html   # Standardindexdokument für die statische Website
         ErrorDocument: error.html   # Fehlerdokument für die Website
