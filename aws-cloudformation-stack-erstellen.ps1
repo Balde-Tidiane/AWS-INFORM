@@ -3,6 +3,7 @@ aws cloudformation create-stack --stack-name WebSiteHosting-stack-tb --template-
 
 # Warten Sie 60 Sekunden
 sleep 60
+print("warten sie während der Statck noch erstellt wird!")
 
 aws s3 cp C:\\AWS-CloudFormation-Auto\index.html s3://trg-bucket-tb/
 aws s3 cp C:\\AWS-CloudFormation-Auto\error.html s3://trg-bucket-tb/
