@@ -1,0 +1,48 @@
+---
+- name: Add Zabbix repository for Ubuntu
+  apt_repository:
+    repo: "deb http://repo.zabbix.com/zabbix/5.0/ubuntu focal main"
+    state: present
+    filename: zabbix
+
+- name: Add Zabbix GPG key
+  apt_key:
+    url: "http://repo.zabbix.com/zabbix-official-repo.key"
+    state: present
+
+- name: Update APT cache
+  apt:
+    update_cache: yes
+
+- name: Install Zabbix Agent
+  apt:
+    name: zabbix-agent
+    state: present
+
+- name: Find Zabbix Agent config
+  ansible.builtin.find:
+    paths: /etc/zabbix/
+    patterns: "zabbix_agentd.conf"
+    use_regex: yes
+  register: agent_config_installed
+
+- name: Remove default Zabbix Agent config file
+  ansible.builtin.file:
+    path: /etc/zabbix/zabbix_agentd.conf
+    state: absent
+  when: agent_config_installed.matched > 0
+
+- name: Set Zabbix Agent config file under /etc/zabbix/
+  template:
+    src: zabbix_agentd.conf.ubuntu.j2
+    dest: /etc/zabbix/zabbix_agentd.conf
+
+- name: Restart Zabbix Agent
+  systemd:
+    name: zabbix-agent
+    state: restarted
+    enabled: yes
+
+- name: Reload systemd
+  systemd:
+    daemon_reload: yes

@@ -1,0 +1,58 @@
+---
+- name: Add zabbix package for RedHat/CentOS/Oracle Linux
+  vars:
+    url: "url_{{ ansible_distribution_major_version }}"
+    validate_certs: false
+  yum:
+    name: "{{ vars[url] }}"
+    state: present
+    disable_gpg_check: True
+
+- name: Install zabbix-agent, zabbix-sender and zabbix-get
+  yum: name={{ zbx_pkg }} update_cache=yes state=latest
+
+- name: Find zabbix conf
+  ansible.builtin.find:
+    paths: /etc/zabbix/
+    patterns: "zabbix_agentd.conf"
+    use_regex: yes
+  register: agent_config_installed
+
+- name: Find zabbix conf
+  shell: find /etc/zabbix/ -iname "zabbix_agentd.conf"
+  register: agent_config_inzabbix
+
+- name: Find zabbix conf
+  shell: find /etc/zabbix/zabbix_agentd.conf -iname "zabbix_agentd.conf"
+  register: agent_config_inetc
+
+- name: Remove file (delete file)
+  ansible.builtin.file:
+    path: /etc/zabbix/zabbix_agentd.conf
+    state: absent
+  when: agent_config_inzabbix == "/etc/zabbix/zabbix_agentd.conf"
+
+- name: Remove file (delete file)
+  ansible.builtin.file:
+    path: /etc/zabbix/zabbix_agentd.conf
+    state: absent
+  when: agent_config_inetc == "/etc/zabbix/zabbix_agentd.conf"
+
+- name: Set zabbix-agent config file under /etc/zabbix/
+  template: src=zabbix_agentd.conf.j2 dest=/etc/zabbix/zabbix_agentd.conf
+  #when: agent_config_inzabbix == "/etc/zabbix/zabbix_agentd.conf"
+
+#- name: Set zabbix-agent config file under /etc/
+
+# template: src=zabbix_agentd.conf_2.j2 dest=/etc/zabbix_agentd.conf
+#when: agent_config_inetc == "/etc/zabbix_agentd.conf"
+
+- name: Restart zabbix-agent
+  systemd:
+    name: zabbix-agent
+    state: restarted
+    enabled: yes
+
+- name: Reload systemd
+  systemd:
+    daemon_reload: yes
